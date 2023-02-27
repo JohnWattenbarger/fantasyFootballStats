@@ -1,3 +1,8 @@
-.RData, .Rhistory, visuals.R, old.R,
-old/, data/*
+.RData
+.Rhistory
+FantasyFootball.Rproj
+visuals.R
+old.R
+old/
+data/
 .Rproj.user
