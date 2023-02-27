@@ -10,6 +10,7 @@
 # > Open tableCreator.R, select all (Ctrl + a), and run (Ctrl + enter)
 # > Switch back to this file
 # > Change the currentYear variable (to the season that just finished. So if prepping for the 2023 season, current season should be 2022)
+# > change the multiplier variables to match league settings
 # > Select all and run (Ctrl + a, then Ctrl + enter)
 #
 # Uses:
@@ -47,7 +48,30 @@ library(ggplot2)
 library(stringr)
 library(xlsx)
 
-currentYear <- 2022
+
+###############################################
+################ Variable used ################
+###############################################
+
+# Change these based on the year and league stats
+
+currentYear <- 2022 # last year of stats to collect. So set to '2022' before '2023' season
+##### Stat multipliers based on different league settings #####
+# passing
+passingYardMultiplier <- .04
+passingTDMultiplier <- 4
+# rushing
+rushingYardMultiplier <- (.1)
+rushingTDMultiplier <- (6)
+# receiving
+receivingYardMultiplier <- (.1)
+receivingTDMultiplier <- (6)
+pointsPerReceptionMultiplier <- (0)
+# turnovers
+interceptionMultiplier <- (-2)
+fumbleMultiplier <- (-2)
+
+# Set variables based on the year (starting year determines how far back to look)
 nextYear <- currentYear + 1
 startingYear <- currentYear - 10
 
@@ -101,13 +125,13 @@ TE <- receiving[receiving$Pos %in% "TE",]
 
 # add a fantasy point total column
 # XXX: Need to manually edit the column names to match the current column names (from renameDuplicates)
-QB$'Fantasy_Points' <- .04*QB$`Pa_Yds` + 4*QB$`Pa_TDs` - 2*QB$`Int` + .1*QB$`Ru_Yds` + 6*QB$`Ru_TDs`- 2*QB$`Fmb`
+QB$'Fantasy_Points' <- passingYardMultiplier*QB$`Pa_Yds` + passingTDMultiplier*QB$`Pa_TDs` + interceptionMultiplier*QB$`Int` + rushingYardMultiplier*QB$`Ru_Yds` + rushingTDMultiplier*QB$`Ru_TDs` + fumbleMultiplier*QB$`Fmb`
 
-RB$'Fantasy_Points' <- .1*RB$`Ru_Yds` + 6*RB$`Ru_TDs` - 2*RB$`Fmb` + .1*RB$`Re_Yds` + 6*RB$`Re_TDs`
+RB$'Fantasy_Points' <- rushingYardMultiplier*RB$`Ru_Yds` + rushingTDMultiplier*RB$`Ru_TDs` + fumbleMultiplier*RB$`Fmb` + receivingYardMultiplier*RB$`Re_Yds` + receivingTDMultiplier*RB$`Re_TDs` + pointsPerReceptionMultiplier*RB$`Rec`
 
-WR$'Fantasy_Points' <- .1*WR$`Re_Yds` + 6*WR$`Re_TDs` - 2*WR$`Fmb`
+WR$'Fantasy_Points' <- receivingYardMultiplier*WR$`Re_Yds` + receivingTDMultiplier*WR$`Re_TDs` + pointsPerReceptionMultiplier*WR$`Rec` + fumbleMultiplier*WR$`Fmb`
 
-TE$'Fantasy_Points' <- .1*TE$`Re_Yds` + 6*TE$`Re_TDs` - 2*TE$`Fmb`
+TE$'Fantasy_Points' <- receivingYardMultiplier*TE$`Re_Yds` + receivingTDMultiplier*TE$`Re_TDs` + pointsPerReceptionMultiplier*TE$`Rec` + fumbleMultiplier*TE$`Fmb`
 
 # set NA to 0 (might be better to do this in cleanup() or toNumeric())
 kicking[is.na(kicking)] <- 0
