@@ -10,7 +10,7 @@
 # > Open tableCreator.R, select all (Ctrl + a), and run (Ctrl + enter)
 # > Switch back to this file
 # > Change the currentYear variable (to the season that just finished. So if prepping for the 2023 season, current season should be 2022)
-# > change the multiplier variables to match league settings
+# > Change the multiplier variables to match league settings
 # > Select all and run (Ctrl + a, then Ctrl + enter)
 #
 # Uses:

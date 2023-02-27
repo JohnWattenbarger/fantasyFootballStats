@@ -15,12 +15,14 @@ Running:
     > select all (ctrl + a) and run (ctrl + enter)
     > open main.R
     > switch the "currentYear" variable (represents the last year of stats to gather. Likely will be 1 year before the actual current year)
+    > switch the multiplier variables to match league settings
     > select all and run
-    > should see 2 new tables in the data folder
+    > should see 2 new tables in the data folder (<current year> Data Analysis Stats which has 10 years of stats, and <current year> Stats which has just last years stats)
 
   - Python
     > open Atom
     > change current year variable to match R studio's variable
     > run all (deselect any text, then ctrl + shift + b)
+    > should see a new table in the data folder (<current year> Predictions which shows the current year stats and a prediction of next years stats)
     > Note: might have to install software updates using `pip install <library> --user`
 
