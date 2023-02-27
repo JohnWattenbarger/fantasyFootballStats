@@ -1,0 +1,3 @@
+.RData, .Rhistory, visuals.R, old.R,
+old/, data/*
+.Rproj.user
