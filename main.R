@@ -55,7 +55,7 @@ library(xlsx)
 
 # Change these based on the year and league stats
 
-currentYear <- 2022 # last year of stats to collect. So set to '2022' before '2023' season
+currentYear <- 2023 # last year of stats to collect. So set to '2022' before '2023' season
 ##### Stat multipliers based on different league settings #####
 # passing
 passingYardMultiplier <- .04

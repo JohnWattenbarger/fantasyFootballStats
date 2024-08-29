@@ -1,159 +1,186 @@
-library('rvest')
+library("rvest")
 library(ggplot2)
 library(stringr)
 library(xlsx)
+library(dplyr)
 
-# Take an HTML_Table from ESPN (changed websites) player stats, get the data, 
+# Take an HTML_Table from ESPN (changed websites) player stats, get the data
 #' @export
-getHtmlTable <- function(type, url, header=TRUE)
-{
-  columns <- getNumberOfColumns(type)
-  
+getHtmlTable <- function(type, url, header = TRUE) {
+  # Get number of columns based on the type of data
+  # columns <- getNumberOfColumns(type)
   webpage <- read_html(url)
-  values <- html_table(webpage, header)
-  table <- data.frame(matrix(unlist(values), ncol=columns, byrow=F))
-  
-  # set column header
-  if (type == "passing" || type == "receiving") {
-    colnames(table) <- lapply(table[30, ], as.character)
-    table <- unique(table)
+
+  # Extract the table from the HTML
+  values <- html_table(webpage, header = header)
+
+  # Convert the list of lists to a data frame
+  # Assuming values is a list of data frames and we want the first one
+  table <- as.data.frame(values[[1]])
+
+  if (type == "rushing" || type == "kicking") {
+    # Remove the first row and set it as the column headers
+    colnames(table) <- as.character(table[1, ])
+    table <- table[-1, ]
   }
-  else {
-    colnames(table) <- lapply(table[1, ], as.character)
-    table <- table[-1,]
-  }
-  
+
+  # Remove rows that match the column headers
+  table <- table[!apply(table, 1, function(row) all(row == colnames(table))), ]
+
   return(table)
 }
 
 # Creates and combines tables from the last 10 years
 #' @export
-multiYearTable <- function(type)
-{
-  for(i in 1:10)
+multiYearTable <- function(type) {
+  for (i in 1:10)
   {
-    year <- startingYear+i
+    year <- startingYear + i
+
+    # avoid rate limiting
+    Sys.sleep(1)
+
     tempTable <- makeTable(type, year)
-    if (i == 1)
+    if (i == 1) {
       tableCombined <- tempTable
-    else
+    } else {
       tableCombined <- rbind(tableCombined, tempTable)
+    }
   }
   return(tableCombined)
 }
 
 # convert data type from factor to character
 #' @export
-toCharacter <- function(data)
-{
-  data <- data.frame(lapply(data, as.character), stringsAsFactors=FALSE)
-  
+toCharacter <- function(data) {
+  data <- data.frame(lapply(data, as.character), stringsAsFactors = FALSE)
+
   return(data)
 }
 
 # convert data type from character to numeric
 #' @export
-toNumeric <- function(data)
-{
-  data <- sapply(data, as.numeric)
+toNumeric <- function(data) {
+  data <- sapply(data, function(x) {
+    as.numeric(as.character(x))
+  })
   return(data)
 }
 
 # gets the data to the correct format
 #' @export
-cleanUp <- function(table, type)
-{
-  if (type == "passing")
-  {
+cleanUp <- function(table, type) {
+  if (type == "passing") {
     table <- toCharacter(table)
-    table[,c(1, 4, 6:7, 8:ncol(table))] <- toNumeric(table[,c(1, 4, 6:7, 8:ncol(table))])
-    
+
+    # Remove the "Awards" column and "League Average" row
+    table <- table %>% select(-Awards)
+    table <- table %>% filter(Player != "League Average")
+
+    table <- table %>%
+      mutate_at(vars(1, 3, 6:7, 9:ncol(table)), as.numeric)
+
+    if (!"Pos" %in% colnames(table)) {
+      table$Pos <- ""
+    }
+
+    unique_values <- unique(table$Pos)
+
     # ensure every Position has a value
-    table$Pos[table$Pos==""] <- "QB"
+    table$Pos[table$Pos == ""] <- "QB"
+
+    # Rename the "Team" column to match other tables ("Tm")
+    colnames(table)[colnames(table) == "Team"] <- "Tm"
   }
-  if (type == "rushing")
-  {
+  if (type == "rushing") {
     table <- toCharacter(table)
-    table[,c(1, 4, 6:ncol(table))] <- toNumeric(table[,c(1, 4, 6:ncol(table))])
-    
+    table <- table %>%
+      mutate_at(vars(1, 4, 6:ncol(table)), as.numeric)
+
+    if (!"Pos" %in% colnames(table)) {
+      table$Pos <- ""
+    }
+
+    unique_values <- unique(table$Pos)
+
     # ensure every Position has a value
-    table$Pos[table$Pos==""] <- "RB"
+    table$Pos[table$Pos == ""] <- "RB"
   }
-  if (type == "receiving")
-  {
+  if (type == "receiving") {
     table <- toCharacter(table)
-    table[,c(1, 4, 6:9, 10:ncol(table))] <- toNumeric(table[,c(1, 4, 6:9, 10:ncol(table))])
-    
+    table[, c(1, 4, 6:9, 10:ncol(table))] <- toNumeric(table[, c(1, 4, 6:9, 10:ncol(table))])
+
     # ensure every Position has a value
-    table$Pos[table$Pos==""] <- "WR"
+    table$Pos[table$Pos == ""] <- "WR"
   }
   # Note: this will be difficult. Must split columns 8 - 12 into 2 columns each
-  if (type == "kicking")
-  {
+  if (type == "kicking") {
     table <- toCharacter(table)
     numericRows <- c(1, 4, 6:20, 22:23, 25:27, 29:ncol(table))
-    table[,numericRows] <- toNumeric(table[,numericRows])
-    
+    table[, numericRows] <- toNumeric(table[, numericRows])
+
+    if (!"Pos" %in% colnames(table)) {
+      table$Pos <- ""
+    }
+
     # ensure every Position has a value
-    table$Pos[table$Pos==""] <- "K"
+    table$Pos[table$Pos == ""] <- "K"
   }
-  
+
   table$Pos <- toupper(table$Pos)
-  table <- removeHeaderRows(table)
+  # table <- removeHeaderRows(table)
   table <- removeExtraCharacters(table)
   table <- renameDuplicates(table, type)
   table <- trimWhitespace(table)
-  
+
   return(table)
 }
 
 #' @export
 removeHeaderRows <- function(table) {
-  table <- removeCharacter(table, "*")  table <- table[!table[,2] == "Player", ]
-  
+  table <- removeCharacter(table, "*")
+  table <- table[!table[, 2] == "Player", ]
+
   return(table)
 }
 
 #' @export
 removeExtraCharacters <- function(table) {
-  table[,2] <- removeCharacter(table[,2], "\\*")
-  table[,2] <- removeCharacter(table[,2], "\\+")
-  
+  table[, 2] <- removeCharacter(table[, 2], "\\*")
+  table[, 2] <- removeCharacter(table[, 2], "\\+")
+
   return(table)
 }
 
 
 # remove a certain character from a table
-removeCharacter <- function(table, character)
-{
+removeCharacter <- function(table, character) {
   if (character != "") {
     table <- gsub(character, "", table)
   }
-  
+
   return(table)
 }
 
 trimWhitespace <- function(table) {
-  table <- data.frame(lapply(table, function(x) if(class(x)=="character") str_trim(x) else(x)), stringsAsFactors=F)
-  
+  table <- data.frame(lapply(table, function(x) if (class(x) == "character") str_trim(x) else (x)), stringsAsFactors = F)
+
   return(table)
 }
 
 # Create a table using ESPN.com or NFL.com
 #' @export
-makeTable <- function(type, year)
-{
+makeTable <- function(type, year) {
   table <- makeTableProFootballReference(type, year)
   table <- cleanUp(table, type)
   table <- addYear(table, year)
-  
+
   return(table)
 }
 
 # makes the 1st column display the year
-addYear <- function(table, year)
-{
-  table[,1] <- year
+addYear <- function(table, year) {
+  table[, 1] <- year
   colnames(table)[1] <- "Year"
   return(table)
 }
@@ -161,38 +188,40 @@ addYear <- function(table, year)
 #' @export
 makeTableProFootballReference <- function(type, year) {
   year <- lapply(year, as.character)
-  
+
   # https://www.pro-football-reference.com/years/2019/passing.htm
   urlPart1 <- "https://www.pro-football-reference.com/years/"
   urlPart2 <- ".htm"
-  
-  totalUrl <- paste(urlPart1, year, "/", type, urlPart2, sep="")
-  
+
+  totalUrl <- paste(urlPart1, year, "/", type, urlPart2, sep = "")
+
   table <- getHtmlTable(type, totalUrl)
   return(table)
 }
 
 #' @export
-getNumberOfColumns <- function(type)
-{
-  if(type == "passing")
+getNumberOfColumns <- function(type) {
+  if (type == "passing") {
     return(31)
-  if(type == "rushing")
-    return(15)
-  if(type == "receiving")
+  }
+  if (type == "rushing") {
+    return(16)
+  }
+  if (type == "receiving") {
     return(19)
-  if(type == "kicking")
+  }
+  if (type == "kicking") {
     return(34)
+  }
 }
 
 # Rename columns that also describe different stats in other tables
 #' @export
-renameDuplicates <- function(table, type)
-{
+renameDuplicates <- function(table, type) {
   if (type == "passing") {
     colnames(table)[c(10, 12:13, 17:22, 26)] <- c("Pa_Att", "Pa_Yds", "Pa_TDs", "Pa_1D", "Pa_Lng", "Pa_Yds_A", "AY_A", "Yd_Com", "Pa_Yds_G", "Sk_Yds")
   }
-  if(type == "rushing") {
+  if (type == "rushing") {
     colnames(table)[c(8:14)] <- c("Ru_Att", "Ru_Yds", "Ru_TDs", "Ru_1D", "Ru_Lng", "Ru_Yds_A", "Ru_Yds_G")
   }
   if (type == "receiving") {
@@ -201,14 +230,13 @@ renameDuplicates <- function(table, type)
   if (type == "kicking") {
     colnames(table)[c(8:19)] <- c("FGA_0_19", "FGM_0_19", "FGA_20_29", "FGM_20_29", "FGA_30_39", "FGM_30_39", "FGA_40_49", "FGM_40_49", "FGA_50", "FGM_50", "FGA", "FGM")
   }
-  
+
   return(table)
 }
 
 # get a position for a certain year
 #' @export
-oneYearTable <- function(table, year)
-{
-  oneYear <- table[table$Year %in% year,]
+oneYearTable <- function(table, year) {
+  oneYear <- table[table$Year %in% year, ]
   return(oneYear)
 }
