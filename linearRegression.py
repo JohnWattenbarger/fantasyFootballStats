@@ -25,7 +25,7 @@ from pathlib import Path
 np.set_printoptions(threshold=1000, linewidth=1000)
 
 # get data for training
-currentYear = 2022
+currentYear = 2023
 sheetName = './data/' + str(currentYear) + ' Data Analysis Stats.xlsx'
 qb = pd.read_excel(sheetName, sheet_name='QB')
 rb = pd.read_excel(sheetName, sheet_name='RB')

@@ -20,7 +20,7 @@ Running:
     > should see 2 new tables in the data folder (<current year> Data Analysis Stats which has 10 years of stats, and <current year> Stats which has just last years stats)
 
   - Python
-    > open Atom
+    > open Atom --> linearRegression.py
     > change current year variable to match R studio's variable
     > run all (deselect any text, then ctrl + shift + b)
     > should see a new table in the data folder (<current year> Predictions which shows the current year stats and a prediction of next years stats)
