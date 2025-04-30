@@ -18,14 +18,13 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # new
 from pandas import ExcelWriter
-
 from pathlib import Path
 
 
 np.set_printoptions(threshold=1000, linewidth=1000)
 
 # get data for training
-currentYear = 2023
+currentYear = 2024
 sheetName = './data/' + str(currentYear) + ' Data Analysis Stats.xlsx'
 qb = pd.read_excel(sheetName, sheet_name='QB')
 rb = pd.read_excel(sheetName, sheet_name='RB')
@@ -139,15 +138,15 @@ def dropColumns(data, type, dropExtra=False):
     if type == "QB":
         itemsToKeep = ['G', 'Cmp', 'Pa_Att', 'Cmp.', 'Pa_Yds', 'Pa_TDs', 'Int', 'Pa_Yds_G', 'ANY.A', 'Ru_Yds', 'Ru_TDs', 'Ru_Yds_G', 'Fantasy_Points', 'Next Year Fantasy Points']
         itemsToKeep = set(list(data)) &  set(itemsToKeep)
-        data = data[itemsToKeep]
+        data = data[list(itemsToKeep)]
     if type == "RB":
         itemsToKeep = ['G', 'Fmb', 'Ru_Att', 'Ru_Yds', 'Ru_TDs', 'Ru_Yds_A', 'Ru_Yds_G', 'Tgt', 'Rec', 'Re_Yds', 'Re_TDs', 'Re_Yds_G', 'Fantasy_Points', 'Next Year Fantasy Points']
         itemsToKeep = set(list(data)) &  set(itemsToKeep)
-        data = data[itemsToKeep]
+        data = data[list(itemsToKeep)]
     if type == "WR" or type == "TE":
         itemsToKeep = ['G', 'Tgt', 'Rec', 'Re_Yds', 'Yd_Rec', 'Re_TDs', 'Re_Yds_G', 'Fmb', 'Fantasy_Points', 'Next Year Fantasy Points']
         itemsToKeep = set(list(data)) &  set(itemsToKeep)
-        data = data[itemsToKeep]
+        data = data[list(itemsToKeep)]
     # if dropExtra:
     #     data = data.drop(['Height', 'Weight', 'Age'], axis=1)
 
@@ -294,23 +293,20 @@ def toExport(data, type):
 
 # Export the data to a spreadsheet
 sheetName = './data/' + str(currentYear) + ' Predictions.xlsx'
-writer = pd.ExcelWriter(sheetName, engine='xlsxwriter')
 
-# toExport(qb_currentYear)
+# Use context manager to automatically save and close the writer
+with pd.ExcelWriter(sheetName, engine='xlsxwriter') as writer:
+    qb_export = toExport(qb_currentYear, "QB")
+    rb_export = toExport(rb_currentYear, "RB")
+    wr_export = toExport(wr_currentYear, "WR")
+    te_export = toExport(te_currentYear, "TE")
 
-qb_export = toExport(qb_currentYear, "QB")
-rb_export = toExport(rb_currentYear, "RB")
-wr_export = toExport(wr_currentYear, "WR")
-te_export = toExport(te_currentYear, "TE")
+    print(qb_export.head(10))
 
-print(qb_export.head(10))
-
-qb_export.to_excel(writer, sheet_name="QB", index=0)
-rb_export.to_excel(writer, sheet_name="RB", index=0)
-wr_export.to_excel(writer, sheet_name="WR", index=0)
-te_export.to_excel(writer, sheet_name="TE", index=0)
-
-writer.save()
+    qb_export.to_excel(writer, sheet_name="QB", index=False)
+    rb_export.to_excel(writer, sheet_name="RB", index=False)
+    wr_export.to_excel(writer, sheet_name="WR", index=False)
+    te_export.to_excel(writer, sheet_name="TE", index=False)
 
 
 
