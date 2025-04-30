@@ -18,7 +18,7 @@ getHtmlTable <- function(type, url, header = TRUE) {
   # Assuming values is a list of data frames and we want the first one
   table <- as.data.frame(values[[1]])
 
-  if (type == "rushing" || type == "kicking") {
+  if (type == "rushing" || type == "receiving" || type == "kicking") {
     # Remove the first row and set it as the column headers
     colnames(table) <- as.character(table[1, ])
     table <- table[-1, ]
@@ -32,23 +32,23 @@ getHtmlTable <- function(type, url, header = TRUE) {
 
 # Creates and combines tables from the last 10 years
 #' @export
-multiYearTable <- function(type) {
-  for (i in 1:10)
-  {
+multiYearTable <- function(type, useCache = TRUE, overwrite = FALSE) {
+  tableCombined <- NULL
+
+  for (i in 1:10) {
     year <- startingYear + i
+    tempTable <- makeTable(type, year, useCache = useCache, overwrite = overwrite)
 
-    # avoid rate limiting
-    Sys.sleep(1)
-
-    tempTable <- makeTable(type, year)
-    if (i == 1) {
+    if (is.null(tableCombined)) {
       tableCombined <- tempTable
     } else {
       tableCombined <- rbind(tableCombined, tempTable)
     }
   }
+
   return(tableCombined)
 }
+
 
 # convert data type from factor to character
 #' @export
@@ -170,13 +170,29 @@ trimWhitespace <- function(table) {
 
 # Create a table using ESPN.com or NFL.com
 #' @export
-makeTable <- function(type, year) {
-  table <- makeTableProFootballReference(type, year)
-  table <- cleanUp(table, type)
-  table <- addYear(table, year)
+makeTable <- function(type, year, useCache = TRUE, overwrite = FALSE) {
+  cacheDir <- "cache"
+  if (!dir.exists(cacheDir)) {
+    dir.create(cacheDir)
+  }
+
+  cacheFile <- file.path(cacheDir, paste0(type, "_", year, ".rds"))
+
+  if (useCache && file.exists(cacheFile) && !overwrite) {
+    message("Loading from cache: ", cacheFile)
+    table <- readRDS(cacheFile)
+  } else {
+    message("Fetching and processing data for ", type, " ", year)
+    Sys.sleep(1) # Still respect rate-limiting
+    table <- makeTableProFootballReference(type, year)
+    table <- cleanUp(table, type)
+    table <- addYear(table, year)
+    saveRDS(table, cacheFile)
+  }
 
   return(table)
 }
+
 
 # makes the 1st column display the year
 addYear <- function(table, year) {
@@ -239,4 +255,29 @@ renameDuplicates <- function(table, type) {
 oneYearTable <- function(table, year) {
   oneYear <- table[table$Year %in% year, ]
   return(oneYear)
+}
+
+# Remove all files from the cache. Only need to use when generating
+# files at the start of the year if the source website has changed.
+#' @export
+clearCache <- function(type = NULL, year = NULL) {
+  cacheDir <- "cache"
+  if (!dir.exists(cacheDir)) {
+    return()
+  }
+
+  files <- list.files(cacheDir, full.names = TRUE)
+
+  if (!is.null(type)) {
+    files <- files[grepl(type, files)]
+  }
+
+  if (!is.null(year)) {
+    files <- files[grepl(as.character(year), files)]
+  }
+
+  for (f in files) {
+    file.remove(f)
+    message("Deleted cache: ", f)
+  }
 }

@@ -48,32 +48,11 @@ library(ggplot2)
 library(stringr)
 library(xlsx)
 
+source("config.R")
+source("tableCreator.R")
+source("functions.R")
 
-###############################################
-################ Variable used ################
-###############################################
-
-# Change these based on the year and league stats
-
-currentYear <- 2023 # last year of stats to collect. So set to '2022' before '2023' season
-##### Stat multipliers based on different league settings #####
-# passing
-passingYardMultiplier <- .06
-passingTDMultiplier <- 4
-# rushing
-rushingYardMultiplier <- (.1)
-rushingTDMultiplier <- (6)
-# receiving
-receivingYardMultiplier <- (.1)
-receivingTDMultiplier <- (6)
-pointsPerReceptionMultiplier <- (0)
-# turnovers
-interceptionMultiplier <- (-2)
-fumbleMultiplier <- (-2)
-
-# Set variables based on the year (starting year determines how far back to look)
-nextYear <- currentYear + 1
-startingYear <- currentYear - 10
+print(currentYear)
 
 ###############################################
 ################ Create Tables ################
@@ -95,6 +74,10 @@ View(receiving)
 kicking <- multiYearTable("kicking")
 View(kicking)
 
+colnames(passing)
+colnames(rushing)
+colnames(receiving)
+
 # Create Position Tables
 yearText <- "Year"
 playerText <- "Player"
@@ -104,6 +87,12 @@ gameText <- "G"
 gameStartedText <- "GS"
 # consider not using team if a traded player appears twice in one year
 teamText <- "Tm"
+
+# Change rushing and receiving column name to match passing (may be a cleaner way to do this)
+rushing$Tm <- rushing$Team
+rushing$Team <- NULL
+receiving$Tm <- receiving$Team
+receiving$Team <- NULL
 
 mergeCategories <- c(yearText, playerText, positionText, teamText, ageText, gameText, gameStartedText)
 mergeCategoriesRb <- append(mergeCategories, "Fmb")
@@ -146,16 +135,6 @@ kicking$"Fantasy_Points" <- 1 * kicking$`XPM` - 1 * (kicking$`FGA` - kicking$`FG
 
 #### new code ####
 
-# Create a new table that adds last year's fantasy points to the current year's data
-# Note: position is the actual data table. Might be better to setup differently, but this works
-createTableToExport <- function(position, currentYear, numberOfColumns) {
-  position.currentYear <- oneYearTable(position, currentYear)
-  position.lastYear <- oneYearTable(position, currentYear - 1)
-  numberOfColumns <- ncol(position.currentYear)
-  temp <- position.lastYear[c(2, numberOfColumns)]
-  colnames(temp)[c(2)] <- c(paste(toCharacter(currentYear - 1), " Fantasy Points"))
-  position.export <- merge(x = position.currentYear, y = temp, by.x = c("Player"), by.y = c("Player"), all.x = TRUE)
-}
 
 QB.export <- createTableToExport(QB, currentYear)
 RB.export <- createTableToExport(RB, currentYear)
@@ -164,46 +143,12 @@ TE.export <- createTableToExport(TE, currentYear)
 
 # create an excel file with just this year's stats
 spreadsheetName <- paste("./data/", paste(currentYear, "Stats.xlsx"), sep = "")
-dir.create(dirname(spreadsheetName))
+# dir.create(dirname(spreadsheetName))
+dir.create(dirname(spreadsheetName), showWarnings = FALSE, recursive = TRUE)
 write.xlsx(QB.export, file = spreadsheetName, sheetName = "QB", row.names = FALSE)
 write.xlsx(RB.export, file = spreadsheetName, sheetName = "RB", append = TRUE, row.names = FALSE)
 write.xlsx(WR.export, file = spreadsheetName, sheetName = "WR", append = TRUE, row.names = FALSE)
 write.xlsx(TE.export, file = spreadsheetName, sheetName = "TE", append = TRUE, row.names = FALSE)
-
-
-# Get the differences b/w starters and non-starters
-
-# returns how many starters there are (for a 10 man standard league)
-getNumberOfStarters <- function(position) {
-  numberOfStarters <- 0
-
-  numberOfStarters <- switch(position,
-    "QB" = 10,
-    "RB" = 20,
-    "WR" = 20,
-    "TE" = 10
-  )
-
-  return(numberOfStarters)
-}
-
-# get only the starting players at a position
-getStartingPlayers <- function(table, position) {
-  for (i in (1:10))
-  {
-    year <- startingYear + i
-    temp <- table[table$Year %in% year, ]
-    temp <- temp[with(temp, order(-temp$`Fantasy_Points`)), ]
-    temp <- temp[1:getNumberOfStarters(position), ]
-    if (i == 1) {
-      startingPlayers <- temp
-    } else {
-      startingPlayers <- rbind(startingPlayers, temp)
-    }
-  }
-
-  return(startingPlayers)
-}
 
 # create a table with the starting players at each position
 QB.startingPlayers <- getStartingPlayers(QB, "QB")
@@ -211,23 +156,6 @@ RB.startingPlayers <- getStartingPlayers(RB, "RB")
 WR.startingPlayers <- getStartingPlayers(WR, "WR")
 TE.startingPlayers <- getStartingPlayers(TE, "TE")
 
-# create a table with the difference between the 1st and last starter each year
-getDifferenceTable <- function(table, position) {
-  for (i in (1:10))
-  {
-    year <- startingYear + i
-    temp <- oneYearTable(table, year)
-    difference <- max(temp$Fantasy_Points) - min(temp$Fantasy_Points)
-
-    if (i == 1) {
-      differenceTable <- c(position, year, difference)
-    } else {
-      differenceTable <- rbind(differenceTable, c(position, year, difference))
-    }
-  }
-  colnames(differenceTable) <- c("Position", "Year", "Difference")
-  return(differenceTable)
-}
 
 # Create tables with the point difference between the best and worst starters at each position
 QB.differenceTable <- getDifferenceTable(QB.startingPlayers, "QB")
@@ -259,47 +187,19 @@ ggplot(differenceTable, aes(Year, `Difference`, group = Position)) +
 
 ######################### Setup Tables with Next Years Stats ###########################
 
-# Add next year's fantasy points to the end of each dataset
-createTableToExport <- function(position, startingYear, currentYear) {
-  for (tempYear in startingYear:(currentYear - 1)) {
-    tempTable <- addNextYearsPoints(position, tempYear)
-    if (tempYear == startingYear) {
-      totalTable <- tempTable
-    } else {
-      totalTable <- rbind(totalTable, tempTable)
-    }
-  }
-  return(totalTable)
-}
-
-addNextYearsPoints <- function(position, year) {
-  position.year <- oneYearTable(position, year)
-  position.nextYear <- oneYearTable(position, year + 1)
-  temp <- position.nextYear[c(2, ncol(position))]
-  colnames(temp)[c(2)] <- c(paste("Next Year", "Fantasy Points"))
-  position.export <- merge(x = position.year, y = temp, by.x = c("Player"), by.y = c("Player"), all.x = TRUE)
-  return(position.export)
-}
-
 # add the next year fantasy points
-QB.withNextYear <- createTableToExport(QB, startingYear, currentYear)
-RB.withNextYear <- createTableToExport(RB, startingYear, currentYear)
-WR.withNextYear <- createTableToExport(WR, startingYear, currentYear)
-TE.withNextYear <- createTableToExport(TE, startingYear, currentYear)
+QB.withNextYear <- createTablesToExport(QB, startingYear, currentYear)
+RB.withNextYear <- createTablesToExport(RB, startingYear, currentYear)
+WR.withNextYear <- createTablesToExport(WR, startingYear, currentYear)
+TE.withNextYear <- createTablesToExport(TE, startingYear, currentYear)
 
 ######################### CREATE DATA FOR LINEAR REGRESSION ###########################
-
-removeNa <- function(table) {
-  table <- table[!is.na(table$`Next Year`), ]
-  return(table)
-}
 
 # remove NA rows (possibly should switch to 0 instead?)
 QB.testData <- removeNa(QB.withNextYear)
 RB.testData <- removeNa(RB.withNextYear)
 WR.testData <- removeNa(WR.withNextYear)
 TE.testData <- removeNa(TE.withNextYear)
-
 
 # create an excel file with the last 10 years of data and next year fantasy stats
 spreadsheetName <- paste("./data/", paste(toCharacter(currentYear), "Data Analysis Stats.xlsx"), sep = "")
