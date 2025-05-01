@@ -88,14 +88,12 @@ cleanUp <- function(table, type) {
 
     # ensure every Position has a value
     table$Pos[table$Pos == ""] <- "QB"
-
-    # Rename the "Team" column to match other tables ("Tm")
-    colnames(table)[colnames(table) == "Team"] <- "Tm"
   }
   if (type == "rushing") {
     table <- toCharacter(table)
+    # Convert most columns to numeric
     table <- table %>%
-      mutate_at(vars(1, 4, 6:ncol(table)), as.numeric)
+      mutate(across(-c(Player, Team, Pos, Awards), as.numeric))
 
     if (!"Pos" %in% colnames(table)) {
       table$Pos <- ""
@@ -108,7 +106,9 @@ cleanUp <- function(table, type) {
   }
   if (type == "receiving") {
     table <- toCharacter(table)
-    table[, c(1, 4, 6:9, 10:ncol(table))] <- toNumeric(table[, c(1, 4, 6:9, 10:ncol(table))])
+    # Convert most columns to numeric
+    table <- table %>%
+      mutate(across(-c(Player, Team, Pos, Awards), as.numeric))
 
     # ensure every Position has a value
     table$Pos[table$Pos == ""] <- "WR"
@@ -231,17 +231,30 @@ getNumberOfColumns <- function(type) {
   }
 }
 
-# Rename columns that also describe different stats in other tables
+# Rename columns that also describe different stats in other tables.
+# Note: This function changes some column names like yds to Pa_Yds, but
+#   doesn't need to be called for other columns without conflicting names
 #' @export
 renameDuplicates <- function(table, type) {
   if (type == "passing") {
-    colnames(table)[c(10, 12:13, 17:22, 26)] <- c("Pa_Att", "Pa_Yds", "Pa_TDs", "Pa_1D", "Pa_Lng", "Pa_Yds_A", "AY_A", "Yd_Com", "Pa_Yds_G", "Sk_Yds")
+    colnames(table)[c(10, 12:13, 17, 19, 20:23, 27)] <- c(
+      "Pa_Att", # 10 = Att
+      "Pa_Yds", # 12 = Yds
+      "Pa_TDs", # 13 = TD
+      "Pa_1D", # 17 = 1D
+      "Pa_Lng", # 19 = Lng
+      "Pa_Yds_A", # 20 = Y/A
+      "AY_A", # 21 = AY/A
+      "Yd_Com", # 22 = Y/C
+      "Pa_Yds_G", # 23 = Y/G
+      "Sk_Yds" # 27 = Yds (from sacks)
+    )
   }
   if (type == "rushing") {
-    colnames(table)[c(8:14)] <- c("Ru_Att", "Ru_Yds", "Ru_TDs", "Ru_1D", "Ru_Lng", "Ru_Yds_A", "Ru_Yds_G")
+    colnames(table)[c(8:11, 13:15)] <- c("Ru_Att", "Ru_Yds", "Ru_TDs", "Ru_1D", "Ru_Lng", "Ru_Yds_A", "Ru_Yds_G")
   }
   if (type == "receiving") {
-    colnames(table)[c(11:18)] <- c("Re_Yds", "Yd_Rec", "Re_TDs", "Re_1D", "Re_Lng", "Y_Tgt", "Re_G", "Re_Yds_G")
+    colnames(table)[c(10:13, 15:17)] <- c("Re_Yds", "Yd_Rec", "Re_TDs", "Re_1D", "Re_Lng", "Re_G", "Re_Yds_G")
   }
   if (type == "kicking") {
     colnames(table)[c(8:19)] <- c("FGA_0_19", "FGM_0_19", "FGA_20_29", "FGM_20_29", "FGA_30_39", "FGM_30_39", "FGA_40_49", "FGM_40_49", "FGA_50", "FGM_50", "FGA", "FGM")

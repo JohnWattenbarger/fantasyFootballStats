@@ -23,3 +23,9 @@ fumbleMultiplier <- (-2)
 # Set variables based on the year (starting year determines how far back to look)
 nextYear <- currentYear + 1
 startingYear <- currentYear - 10
+
+# Set this to NULL or "" if you don't want a suffix
+# customTitle <- null # or "" or NULL for no title
+customTitle <- "dynasty_league" # or "" or NULL for no title
+
+createExcelDocs <- FALSE # Set to FALSE to skip Excel file generation

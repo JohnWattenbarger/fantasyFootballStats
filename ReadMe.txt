@@ -14,6 +14,7 @@ Running:
     > open config.R --> File with current year and other values I might need to change
     > switch the "currentYear" variable (represents the last year of stats to gather. Likely will be 1 year before the actual current year)
     > switch the multiplier variables to match league settings
+    > ensure the "createExcelDocs" variable is set to TRUE
     > open main.R
     > select all (ctrl + a) and run (ctrl + enter)
     > should see 2 new tables in the data folder (<current year> Data Analysis Stats which has 10 years of stats, and <current year> Stats which has just last years stats)

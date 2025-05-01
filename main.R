@@ -74,10 +74,6 @@ View(receiving)
 kicking <- multiYearTable("kicking")
 View(kicking)
 
-colnames(passing)
-colnames(rushing)
-colnames(receiving)
-
 # Create Position Tables
 yearText <- "Year"
 playerText <- "Player"
@@ -86,13 +82,8 @@ ageText <- "Age"
 gameText <- "G"
 gameStartedText <- "GS"
 # consider not using team if a traded player appears twice in one year
-teamText <- "Tm"
-
-# Change rushing and receiving column name to match passing (may be a cleaner way to do this)
-rushing$Tm <- rushing$Team
-rushing$Team <- NULL
-receiving$Tm <- receiving$Team
-receiving$Team <- NULL
+# teamText <- "Tm"
+teamText <- "Team"
 
 mergeCategories <- c(yearText, playerText, positionText, teamText, ageText, gameText, gameStartedText)
 mergeCategoriesRb <- append(mergeCategories, "Fmb")
@@ -120,7 +111,7 @@ RB$"Fantasy_Points" <- rushingYardMultiplier * RB$`Ru_Yds` + rushingTDMultiplier
 
 WR$"Fantasy_Points" <- receivingYardMultiplier * WR$`Re_Yds` + receivingTDMultiplier * WR$`Re_TDs` + pointsPerReceptionMultiplier * WR$`Rec` + fumbleMultiplier * WR$`Fmb`
 
-TE$"Fantasy_Points" <- receivingYardMultiplier * TE$`Re_Yds` + receivingTDMultiplier * TE$`Re_TDs` + pointsPerReceptionMultiplier * TE$`Rec` + fumbleMultiplier * TE$`Fmb`
+TE$"Fantasy_Points" <- teReceivingYardMultiplier * TE$`Re_Yds` + receivingTDMultiplier * TE$`Re_TDs` + pointsPerReceptionMultiplier * TE$`Rec` + fumbleMultiplier * TE$`Fmb`
 
 # set NA to 0 (might be better to do this in cleanup() or toNumeric())
 kicking[is.na(kicking)] <- 0
@@ -135,20 +126,44 @@ kicking$"Fantasy_Points" <- 1 * kicking$`XPM` - 1 * (kicking$`FGA` - kicking$`FG
 
 #### new code ####
 
-
 QB.export <- createTableToExport(QB, currentYear)
 RB.export <- createTableToExport(RB, currentYear)
 WR.export <- createTableToExport(WR, currentYear)
 TE.export <- createTableToExport(TE, currentYear)
 
 # create an excel file with just this year's stats
-spreadsheetName <- paste("./data/", paste(currentYear, "Stats.xlsx"), sep = "")
-# dir.create(dirname(spreadsheetName))
-dir.create(dirname(spreadsheetName), showWarnings = FALSE, recursive = TRUE)
-write.xlsx(QB.export, file = spreadsheetName, sheetName = "QB", row.names = FALSE)
-write.xlsx(RB.export, file = spreadsheetName, sheetName = "RB", append = TRUE, row.names = FALSE)
-write.xlsx(WR.export, file = spreadsheetName, sheetName = "WR", append = TRUE, row.names = FALSE)
-write.xlsx(TE.export, file = spreadsheetName, sheetName = "TE", append = TRUE, row.names = FALSE)
+if (createExcelDocs) {
+  tryCatch(
+    {
+      spreadsheetName <- paste("./data/", paste(currentYear, "Stats.xlsx"), sep = "")
+      # Build optional suffix
+      suffix <- if (!is.null(customTitle) && customTitle != "") paste0("_", customTitle) else ""
+      # Final spreadsheet name with optional suffix
+      spreadsheetName <- paste0("./data/", currentYear, " Stats", suffix, ".xlsx")
+
+      # Create workbook
+      wb <- createWorkbook()
+
+      # Add sheets
+      addWorksheet(wb, "QB")
+      addWorksheet(wb, "RB")
+      addWorksheet(wb, "WR")
+      addWorksheet(wb, "TE")
+
+      # Write data to sheets
+      writeData(wb, "QB", QB.export)
+      writeData(wb, "RB", RB.export)
+      writeData(wb, "WR", WR.export)
+      writeData(wb, "TE", TE.export)
+
+      # Save workbook
+      saveWorkbook(wb, spreadsheetName, overwrite = TRUE)
+    },
+    error = function(e) {
+      message("Export failed: ", e)
+    }
+  )
+}
 
 # create a table with the starting players at each position
 QB.startingPlayers <- getStartingPlayers(QB, "QB")
@@ -202,11 +217,40 @@ WR.testData <- removeNa(WR.withNextYear)
 TE.testData <- removeNa(TE.withNextYear)
 
 # create an excel file with the last 10 years of data and next year fantasy stats
-spreadsheetName <- paste("./data/", paste(toCharacter(currentYear), "Data Analysis Stats.xlsx"), sep = "")
-dir.create(dirname(spreadsheetName))
-write.xlsx(QB.testData, file = spreadsheetName, sheetName = "QB", row.names = FALSE)
-write.xlsx(RB.testData, file = spreadsheetName, sheetName = "RB", append = TRUE, row.names = FALSE)
-write.xlsx(WR.testData, file = spreadsheetName, sheetName = "WR", append = TRUE, row.names = FALSE)
-write.xlsx(TE.testData, file = spreadsheetName, sheetName = "TE", append = TRUE, row.names = FALSE)
+if (createExcelDocs) {
+  tryCatch(
+    {
+      spreadsheetName <- paste("./data/", paste(toCharacter(currentYear), "Data Analysis Stats.xlsx"), sep = "")
+      # Build optional suffix
+      suffix <- if (!is.null(customTitle) && customTitle != "") paste0("_", customTitle) else ""
+      # Final spreadsheet name with optional suffix
+      spreadsheetName <- paste0("./data/", currentYear, " Data Analysis Stats", suffix, ".xlsx")
+
+      # Create workbook
+      wb <- createWorkbook()
+
+      # Add sheets
+      addWorksheet(wb, "QB")
+      addWorksheet(wb, "RB")
+      addWorksheet(wb, "WR")
+      addWorksheet(wb, "TE")
+
+      # Write data to sheets
+      writeData(wb, "QB", QB.testData)
+      writeData(wb, "RB", RB.testData)
+      writeData(wb, "WR", WR.testData)
+      writeData(wb, "TE", TE.testData)
+
+      # Save workbook
+      saveWorkbook(wb, spreadsheetName, overwrite = TRUE)
+    },
+    error = function(e) {
+      message("Export failed: ", e)
+    }
+  )
+}
+
+# # Optionally run this to look at VoRP:
+# source("valueOverReplacement.R")
 
 # All finished and ready to be analyzed!
