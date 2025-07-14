@@ -46,7 +46,8 @@
 library("rvest")
 library(ggplot2)
 library(stringr)
-library(xlsx)
+# library(xlsx)
+library(openxlsx)
 
 source("config.R")
 source("tableCreator.R")

@@ -14,6 +14,7 @@ rushingYardMultiplier <- (.1)
 rushingTDMultiplier <- (6)
 # receiving
 receivingYardMultiplier <- (.1)
+teReceivingYardMultiplier <- (.1) # most leagues this will match receivingYardMultiplier. Except in some dynasty leagues
 receivingTDMultiplier <- (6)
 pointsPerReceptionMultiplier <- (0)
 # turnovers
@@ -28,4 +29,4 @@ startingYear <- currentYear - 10
 # customTitle <- null # or "" or NULL for no title
 customTitle <- "dynasty_league" # or "" or NULL for no title
 
-createExcelDocs <- FALSE # Set to FALSE to skip Excel file generation
+createExcelDocs <- TRUE # Set to FALSE to skip Excel file generation
