@@ -1,7 +1,7 @@
 library("rvest")
 library(ggplot2)
 library(stringr)
-library(xlsx)
+library(openxlsx)
 library(dplyr)
 
 # Take an HTML_Table from ESPN (changed websites) player stats, get the data

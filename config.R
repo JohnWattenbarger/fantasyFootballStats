@@ -7,7 +7,7 @@
 currentYear <- 2024 # last year of stats to collect. So set to '2022' before '2023' season
 ##### Stat multipliers based on different league settings #####
 # passing
-passingYardMultiplier <- .06
+passingYardMultiplier <- .04 # 1 point per 25 yards
 passingTDMultiplier <- 4
 # rushing
 rushingYardMultiplier <- (.1)
