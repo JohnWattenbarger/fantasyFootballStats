@@ -12,30 +12,73 @@ ui <- fluidPage(
   titlePanel("Fantasy Football Stats Generator"),
   sidebarLayout(
     sidebarPanel(
-      # Input fields for user configuration
-      numericInput("currentYear", "Current Year", value = 2024, min = 2000, max = 2100),
-      helpText("Last full NFL season to collect data from (so for 2025 put '2024')"),
-      numericInput("passingYardMultiplier", "Passing Yard Multiplier", value = 0.04),
-      helpText(".04 = 1 point per 25 yards"),
-      numericInput("passingTDMultiplier", "Passing TD Multiplier", value = 4),
-      numericInput("rushingYardMultiplier", "Rushing Yard Multiplier", value = 0.1),
-      numericInput("rushingTDMultiplier", "Rushing TD Multiplier", value = 6),
-      numericInput("receivingYardMultiplier", "Receiving Yard Multiplier", value = 0.1),
-      numericInput("teReceivingYardMultiplier", "TE Receiving Yard Multiplier", value = 0.1),
-      helpText("Most leagues this will match receivingYardMultiplier. Except in TE Premium leagues"),
-      numericInput("receivingTDMultiplier", "Receiving TD Multiplier", value = 6),
-      numericInput("pointsPerReceptionMultiplier", "Points Per Reception Multiplier", value = 0),
-      helpText("Set to 0 for no PPR, 1 for 1 point per reception, etc."),
-      numericInput("interceptionMultiplier", "Interception Multiplier", value = -2),
-      numericInput("fumbleMultiplier", "Fumble Multiplier", value = -2),
-      # VORP fields
-      numericInput("leagueSize", "League Size (teams)", value = 12, min = 1),
-      numericInput("qbStarters", "QBs per team", value = 1, min = 0),
-      numericInput("rbStarters", "RBs per team", value = 2, min = 0),
-      numericInput("wrStarters", "WRs per team", value = 2, min = 0),
-      numericInput("teStarters", "TEs per team", value = 1, min = 0),
-      numericInput("flexSpots", "Flex spots (RB/WR/TE) per team", value = 1, min = 0),
-      # checkboxGroupInput("flexPositions", "Flex positions allowed", choices = c("RB", "WR", "TE"), selected = c("RB", "WR", "TE"))
+      tags$head(
+        tags$style(HTML("
+          details {
+            margin: 10px 0;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #fafafa;
+          }
+
+          details summary {
+            font-weight: bold;
+            cursor: pointer;
+            list-style: none; /* hide default disclosure triangle */
+            position: relative;
+            padding-left: 1.2em;
+          }
+
+          /* custom arrow icon */
+          details summary::before {
+            content: '▶'; 
+            position: absolute;
+            left: 0;
+            transition: transform 0.2s ease;
+          }
+
+          details[open] summary::before {
+            transform: rotate(90deg); /* arrow rotates when open */
+          }
+        "))
+      ),
+      tags$details(
+        open = TRUE,  # start expanded by default
+        tags$summary("Scoring Settings"),
+        # Input fields for user configuration
+        numericInput("currentYear", "Current Year", value = 2024, min = 2000, max = 2100),
+        helpText("Last full NFL season to collect data from (so for 2025 put '2024')"),
+        numericInput("passingYardMultiplier", "Passing Yard Multiplier", value = 0.04),
+        helpText(".04 = 1 point per 25 yards"),
+        numericInput("passingTDMultiplier", "Passing TD Multiplier", value = 4),
+        numericInput("pointsPerReceptionMultiplier", "Points Per Reception Multiplier", value = 0),
+        helpText("Set to 0 for no PPR, 1 for 1 point per reception, etc.")
+      ),
+      tags$details(
+        # open = FALSE,
+        tags$summary("Advanced Scoring Settings"),
+          numericInput("rushingYardMultiplier", "Rushing Yard Multiplier", value = 0.1),
+          numericInput("rushingTDMultiplier", "Rushing TD Multiplier", value = 6),
+          numericInput("receivingYardMultiplier", "Receiving Yard Multiplier", value = 0.1),
+          numericInput("teReceivingYardMultiplier", "TE Receiving Yard Multiplier", value = 0.1),
+          helpText("Most leagues this will match receivingYardMultiplier. Except in TE Premium leagues"),
+          numericInput("receivingTDMultiplier", "Receiving TD Multiplier", value = 6),
+          numericInput("interceptionMultiplier", "Interception Multiplier", value = -2),
+          numericInput("fumbleMultiplier", "Fumble Multiplier", value = -2)
+      ),
+      tags$details(
+        open = TRUE,
+        tags$summary("VoRP Fields"),
+          # VORP fields
+          numericInput("leagueSize", "League Size (teams)", value = 12, min = 1),
+          numericInput("qbStarters", "QBs per team", value = 1, min = 0),
+          numericInput("rbStarters", "RBs per team", value = 2, min = 0),
+          numericInput("wrStarters", "WRs per team", value = 2, min = 0),
+          numericInput("teStarters", "TEs per team", value = 1, min = 0),
+          numericInput("flexSpots", "Flex spots (RB/WR/TE) per team", value = 1, min = 0)
+          # checkboxGroupInput("flexPositions", "Flex positions allowed", choices = c("RB", "WR", "TE"), selected = c("RB", "WR", "TE"))
+      ),
       # Custom title for Excel files
       textInput("customTitle", "Custom Title (optional)", value = ""),
       # Action buttons for running analysis and downloading files
@@ -45,10 +88,11 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
+        tabPanel("VoRP Table", DTOutput("vorpTable")),
         tabPanel("QB Table", DTOutput("qbTable")),
         tabPanel("RB Table", DTOutput("rbTable")),
         tabPanel("WR Table", DTOutput("wrTable")),
-        tabPanel("TE Table", DTOutput("teTable"))
+        tabPanel("TE Table", DTOutput("teTable")),
       )
     )
   )
@@ -159,6 +203,72 @@ runAnalysisCode <- function(input, results) {
   results$TE <- TE.export
 }
 
+runVorpAnalysis <- function(input, results) {
+  library(dplyr)
+  QB <- results$QB
+  RB <- results$RB
+  WR <- results$WR
+  TE <- results$TE
+
+  # Defensive checks for input tables
+  if (is.null(QB) || is.null(RB) || is.null(WR) || is.null(TE)) {
+    stop("One or more position tables are missing. Please run analysis first.")
+  }
+
+  # Starter counts from input
+  leagueSize <- as.numeric(input$leagueSize)
+  qbStarters <- as.numeric(input$qbStarters)
+  rbStarters <- as.numeric(input$rbStarters)
+  wrStarters <- as.numeric(input$wrStarters)
+  teStarters <- as.numeric(input$teStarters)
+  flexSpots <- as.numeric(input$flexSpots)
+
+  # Defensive checks for starter counts
+  if (any(is.na(c(leagueSize, qbStarters, rbStarters, wrStarters, teStarters, flexSpots)))) {
+    stop("Starter counts must be numeric and not NA.")
+  }
+
+  starter_counts <- list(
+    QB = leagueSize * qbStarters,
+    RB = leagueSize * rbStarters,
+    WR = leagueSize * wrStarters,
+    TE = leagueSize * teStarters,
+    FLEX = leagueSize * flexSpots
+  )
+
+  # Assign flex starters
+  starter_counts <- assign_flex_starters(RB, WR, TE, starter_counts)
+
+  top_n <- 100
+  avg_QB <- getAvgPointsByRank(QB, "QB", top_n)
+  avg_RB <- getAvgPointsByRank(RB, "RB", top_n)
+  avg_WR <- getAvgPointsByRank(WR, "WR", top_n)
+  avg_TE <- getAvgPointsByRank(TE, "TE", top_n)
+
+  # Defensive checks for VORP tables
+  for (df in list(avg_QB, avg_RB, avg_WR, avg_TE)) {
+    if (!("Rank" %in% colnames(df)) || !("Avg_Fantasy_Points" %in% colnames(df))) {
+      stop("VORP calculation failed: missing columns in average points tables.")
+    }
+    if (!is.numeric(df$Rank) || !is.numeric(df$Avg_Fantasy_Points)) {
+      stop("VORP calculation failed: Rank and Avg_Fantasy_Points must be numeric.")
+    }
+  }
+
+  avg_QB <- calculateVoRP(avg_QB, starter_counts$QB)
+  avg_RB <- calculateVoRP(avg_RB, starter_counts$RB)
+  avg_WR <- calculateVoRP(avg_WR, starter_counts$WR)
+  avg_TE <- calculateVoRP(avg_TE, starter_counts$TE)
+
+  avg_all_vorp <- bind_rows(avg_QB, avg_RB, avg_WR, avg_TE)
+  avg_all_vorp$Label <- paste0(avg_all_vorp$Position, avg_all_vorp$Rank)
+  avg_all_vorp_sorted <- avg_all_vorp[order(-avg_all_vorp$VoRP), c("Label", "VoRP", "Avg_Fantasy_Points")]
+  avg_all_vorp_sorted$VoRP <- round(avg_all_vorp_sorted$VoRP, 1)
+  avg_all_vorp_sorted$Avg_Fantasy_Points <- round(avg_all_vorp_sorted$Avg_Fantasy_Points, 1)
+
+  results$VoRP <- avg_all_vorp_sorted
+}
+
 server <- function(input, output, session) {
   # Store results in reactive values
   results <- reactiveValues(
@@ -167,17 +277,28 @@ server <- function(input, output, session) {
 
   observeEvent(input$runAnalysis, {
     runAnalysisCode(input, results)
+    runVorpAnalysis(input, results)
   })
 
   # Render tables
   output$qbTable <- renderDT({
     req(results$QB)
     # datatable(results$QB)
-    datatable(results$QB, options = list(order = list(list( which(colnames(results$QB) == "Fantasy_Points"), 'desc'))))
+    datatable(results$QB, options = list(pageLength = 25, order = list(list( which(colnames(results$QB) == "Fantasy_Points"), 'desc'))))
   })
-  output$rbTable <- renderDT({ req(results$RB); datatable(results$RB, options = list(order = list(list( which(colnames(results$RB) == "Fantasy_Points"), 'desc')))) })
-  output$wrTable <- renderDT({ req(results$WR); datatable(results$WR, options = list(order = list(list( which(colnames(results$WR) == "Fantasy_Points"), 'desc')))) })
-  output$teTable <- renderDT({ req(results$TE); datatable(results$TE, options = list(order = list(list( which(colnames(results$TE) == "Fantasy_Points"), 'desc')))) })
+  output$rbTable <- renderDT({ req(results$RB); datatable(results$RB, options = list(pageLength = 25, order = list(list( which(colnames(results$RB) == "Fantasy_Points"), 'desc')))) })
+  output$wrTable <- renderDT({ req(results$WR); datatable(results$WR, options = list(pageLength = 25, order = list(list( which(colnames(results$WR) == "Fantasy_Points"), 'desc')))) })
+  output$teTable <- renderDT({ req(results$TE); datatable(results$TE, options = list(pageLength = 25, order = list(list( which(colnames(results$TE) == "Fantasy_Points"), 'desc')))) })
+  output$vorpTable <- renderDT({
+    req(results$VoRP)
+    datatable(
+      results$VoRP,
+      options = list(
+        order = list(list(which(colnames(results$VoRP) == "VoRP"), 'desc')),
+        pageLength = 25   # set default to 25 entries
+      )
+    )
+  })
 
   # Download Excel
   output$downloadExcel <- downloadHandler(
@@ -203,67 +324,7 @@ server <- function(input, output, session) {
     content = function(file) {
       # Always run analysis before download
       runAnalysisCode(input, results)
-
-      library(dplyr)
-      QB <- results$QB
-      RB <- results$RB
-      WR <- results$WR
-      TE <- results$TE
-
-      # Defensive checks for input tables
-      if (is.null(QB) || is.null(RB) || is.null(WR) || is.null(TE)) {
-        stop("One or more position tables are missing. Please run analysis first.")
-      }
-
-      # Starter counts from input
-      leagueSize <- as.numeric(input$leagueSize)
-      qbStarters <- as.numeric(input$qbStarters)
-      rbStarters <- as.numeric(input$rbStarters)
-      wrStarters <- as.numeric(input$wrStarters)
-      teStarters <- as.numeric(input$teStarters)
-      flexSpots <- as.numeric(input$flexSpots)
-
-      # Defensive checks for starter counts
-      if (any(is.na(c(leagueSize, qbStarters, rbStarters, wrStarters, teStarters, flexSpots)))) {
-        stop("Starter counts must be numeric and not NA.")
-      }
-
-      starter_counts <- list(
-        QB = leagueSize * qbStarters,
-        RB = leagueSize * rbStarters,
-        WR = leagueSize * wrStarters,
-        TE = leagueSize * teStarters,
-        FLEX = leagueSize * flexSpots
-      )
-
-      # Assign flex starters
-      starter_counts <- assign_flex_starters(RB, WR, TE, starter_counts)
-
-      top_n <- 100
-      avg_QB <- getAvgPointsByRank(QB, "QB", top_n)
-      avg_RB <- getAvgPointsByRank(RB, "RB", top_n)
-      avg_WR <- getAvgPointsByRank(WR, "WR", top_n)
-      avg_TE <- getAvgPointsByRank(TE, "TE", top_n)
-
-      # Defensive checks for VORP tables
-      for (df in list(avg_QB, avg_RB, avg_WR, avg_TE)) {
-        if (!("Rank" %in% colnames(df)) || !("Avg_Fantasy_Points" %in% colnames(df))) {
-          stop("VORP calculation failed: missing columns in average points tables.")
-        }
-        if (!is.numeric(df$Rank) || !is.numeric(df$Avg_Fantasy_Points)) {
-          stop("VORP calculation failed: Rank and Avg_Fantasy_Points must be numeric.")
-        }
-      }
-
-      avg_QB <- calculateVoRP(avg_QB, starter_counts$QB)
-      avg_RB <- calculateVoRP(avg_RB, starter_counts$RB)
-      avg_WR <- calculateVoRP(avg_WR, starter_counts$WR)
-      avg_TE <- calculateVoRP(avg_TE, starter_counts$TE)
-
-      avg_all_vorp <- bind_rows(avg_QB, avg_RB, avg_WR, avg_TE)
-      avg_all_vorp$Label <- paste0(avg_all_vorp$Position, avg_all_vorp$Rank)
-      avg_all_vorp_sorted <- avg_all_vorp[order(-avg_all_vorp$VoRP), c("Label", "VoRP", "Avg_Fantasy_Points")]
-
+      runVorpAnalysis(input, results)
       
       # Create league details dataframe
       league_details <- data.frame(
