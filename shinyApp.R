@@ -266,6 +266,10 @@ runVorpAnalysis <- function(input, results) {
   avg_all_vorp_sorted$VoRP <- round(avg_all_vorp_sorted$VoRP, 1)
   avg_all_vorp_sorted$Avg_Fantasy_Points <- round(avg_all_vorp_sorted$Avg_Fantasy_Points, 1)
 
+  results$avg_QB <- avg_QB
+  results$avg_RB <- avg_RB
+  results$avg_WR <- avg_WR
+  results$avg_TE <- avg_TE
   results$VoRP <- avg_all_vorp_sorted
 }
 
@@ -325,11 +329,26 @@ server <- function(input, output, session) {
       # Always run analysis before download
       runAnalysisCode(input, results)
       runVorpAnalysis(input, results)
+
+      # Pull VORP table from results
+      avg_QB <- results$avg_QB
+      avg_RB <- results$avg_RB
+      avg_WR <- results$avg_WR
+      avg_TE <- results$avg_TE
+      avg_all_vorp_sorted <- results$VoRP
+      req(avg_all_vorp_sorted)
       
       # Create league details dataframe
       league_details <- data.frame(
-          Setting = c("Teams", "QBs", "RBs", "WRs", "TEs", "Flex (RB/WR/TE)"),
-          Value   = c(leagueSize, qbStarters, rbStarters, wrStarters, teStarters, flexSpots)
+        Setting = c("Teams", "QBs", "RBs", "WRs", "TEs", "Flex (RB/WR/TE)"),
+        Value   = c(
+          as.numeric(input$leagueSize),
+          as.numeric(input$qbStarters),
+          as.numeric(input$rbStarters),
+          as.numeric(input$wrStarters),
+          as.numeric(input$teStarters),
+          as.numeric(input$flexSpots)
+        )
       )
 
       wb <- createWorkbook()
@@ -379,7 +398,7 @@ server <- function(input, output, session) {
       for (pos in positions) {
         pos_rows <- grep(paste0("^", pos), avg_all_vorp_sorted$Label)  # indices of that position
         # Apply bold to every nth player, where n = leagueSize
-        bold_rows <- pos_rows[seq(leagueSize, length(pos_rows), by = leagueSize)]
+        bold_rows <- pos_rows[seq(input$leagueSize, length(pos_rows), by = input$leagueSize)]
         
         addStyle(
           wb,
