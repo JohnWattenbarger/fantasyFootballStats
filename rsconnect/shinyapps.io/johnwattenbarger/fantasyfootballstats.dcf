@@ -1,0 +1,10 @@
+name: fantasyfootballstats
+title:
+username: johnwattenbarger
+account: johnwattenbarger
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15260517
+bundleId: 10814809
+url: https://johnwattenbarger.shinyapps.io/fantasyfootballstats/
+version: 1

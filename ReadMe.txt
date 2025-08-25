@@ -1,5 +1,6 @@
 Files:
   - Code:
+    > app.R --> Very similar to main.R, but runs in a shiny app (and can be deployed to shinyapp.io)
     > tableCreator.R --> contains functions to parse web and generate data tables
     > main.R --> uses tableCreator to generate different tables/visuals, and exports 2 excel files (<Year> Stats.xlsx and <Year> Data Analysis Stats.xlsx)
     > linearRegression --> python script that reads the Data Analysis file, runs linear regression on it, and generates predictive results in <Year> Predictions.xlsx
@@ -25,4 +26,11 @@ Running:
     > run all (deselect any text, then ctrl + shift + b)
     > should see a new table in the data folder (<current year> Predictions which shows the current year stats and a prediction of next years stats)
     > Note: might have to install software updates using `pip install <library> --user`
+
+Uploading to shinyapp.io for online hosting:
+  - *one time: install.packages('rsconnect')
+  - library(rsconnect)
+  - rsconnect::setAccountInfo(name='johnwattenbarger', token=**********
+    > Get the token from logging in to shinyapp.io --> https://www.shinyapps.io/admin/#/dashboard
+  - deployApp()
 
